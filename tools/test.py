@@ -113,7 +113,7 @@ def main():
     dataset = build_dataset(cfg.data.test, dict(test_mode=True))
     # step 1: give default values and override (if exist) from cfg.data
     loader_cfg = {
-        **dict(seed=cfg.get('seed'), drop_last=False, dist=distributed),
+        **dict(seed=cfg.get('seed'), drop_last=False, dist=distributed, sampler=cfg.data.get('sampler', {}),),
         **({} if torch.__version__ != 'parrots' else dict(
                prefetch_num=2,
                pin_memory=False,

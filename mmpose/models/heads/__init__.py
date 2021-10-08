@@ -8,13 +8,14 @@ from .hmr_head import HMRMeshHead
 from .interhand_3d_head import Interhand3DHead
 from .temporal_regression_head import TemporalRegressionHead
 from .topdown_heatmap_base_head import TopdownHeatmapBaseHead
+from .topdown_heatmap_infonce import TopdownHeatmapInfoNCEHead
 from .topdown_heatmap_multi_stage_head import (TopdownHeatmapMSMUHead,
                                                TopdownHeatmapMultiStageHead)
 from .topdown_heatmap_simple_head import TopdownHeatmapSimpleHead
 from .vipnas_heatmap_simple_head import ViPNASHeatmapSimpleHead
 
 __all__ = [
-    'TopdownHeatmapSimpleHead', 'TopdownHeatmapMultiStageHead',
+    'TopdownHeatmapSimpleHead', 'TopdownHeatmapInfoNCEHead', 'TopdownHeatmapMultiStageHead',
     'TopdownHeatmapMSMUHead', 'TopdownHeatmapBaseHead',
     'AEHigherResolutionHead', 'AESimpleHead', 'AEMultiStageHead',
     'DeepposeRegressionHead', 'TemporalRegressionHead', 'Interhand3DHead',

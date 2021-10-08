@@ -9,7 +9,7 @@ from mmcv.runner import get_dist_info
 from mmcv.utils import Registry, build_from_cfg
 from mmcv.utils.parrots_wrapper import _get_dataloader
 
-from .samplers import DistributedSampler
+from .samplers import DistributedSampler, RandomPairSampler
 
 if platform.system() != 'Windows':
     # https://github.com/pytorch/pytorch/issues/973
@@ -49,6 +49,7 @@ def build_dataloader(dataset,
                      samples_per_gpu,
                      workers_per_gpu,
                      num_gpus=1,
+                     sampler=None,
                      dist=True,
                      shuffle=True,
                      seed=None,
@@ -86,6 +87,11 @@ def build_dataloader(dataset,
         shuffle = False
         batch_size = samples_per_gpu
         num_workers = workers_per_gpu
+    elif sampler == 'RandomPairSampler':
+        sampler = RandomPairSampler(dataset)
+        shuffle = False
+        batch_size = num_gpus * samples_per_gpu
+        num_workers = num_gpus * workers_per_gpu
     else:
         sampler = None
         batch_size = num_gpus * samples_per_gpu

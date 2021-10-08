@@ -49,7 +49,8 @@ def train_model(model,
             seed=cfg.get('seed'),
             drop_last=False,
             dist=distributed,
-            num_gpus=len(cfg.gpu_ids)),
+            num_gpus=len(cfg.gpu_ids),
+            sampler=cfg.data.get('sampler', {})),
         **({} if torch.__version__ != 'parrots' else dict(
                prefetch_num=2,
                pin_memory=False,
@@ -96,6 +97,8 @@ def train_model(model,
     else:
         model = MMDataParallel(
             model.cuda(cfg.gpu_ids[0]), device_ids=cfg.gpu_ids)
+        # model.to(torch.device('cpu'))
+        # model = MMDataParallel(model)
 
     # build runner
     optimizer = build_optimizers(model, cfg.optimizer)
@@ -140,6 +143,7 @@ def train_model(model,
             workers_per_gpu=cfg.data.get('workers_per_gpu', {}),
             # cfg.gpus will be ignored if distributed
             num_gpus=len(cfg.gpu_ids),
+            sampler=cfg.data.get('sampler', {}),
             dist=distributed,
             drop_last=False,
             shuffle=False)
