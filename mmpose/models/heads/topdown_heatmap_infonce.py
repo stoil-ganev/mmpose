@@ -164,7 +164,6 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         losses['infonce_loss'] = -(nce / (N * K))
 
         losses['decoder_loss'] = self._decoding_loss(z.detach(), target, target_weight)
-        print(losses)
         return losses
 
     def get_accuracy(self, output, target, target_weight):
@@ -366,11 +365,36 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
 
     @staticmethod
     def _keypoints_to_heatmap(keypoints, H, W):
+        """
+        Turns keypoint coordinates into one-hot encoded 2D maps
+
+        Args:
+            keypoints (torch.Tensor[NxKx2]): keypoint coordinates
+            H (int): image height
+            W (int): image width
+
+        Returns:
+            torch.Tensor[NxKxHxW]: One-hot encoded 2D map of the keypoints
+        """
         N, K, _ = keypoints.shape
 
         rows, cols = keypoints.long().split(1, -1)
-        rows = F.one_hot(rows, num_classes=W)
-        cols = F.one_hot(cols, num_classes=H)
+
+        # find out of bounds keypoints
+        oob_rows = (rows < 0) | (rows > (W - 1))
+        oob_cols = (cols < 0) | (cols > (H - 1))
+
+        # fake coords to successfully one-hot encode
+        rows[oob_rows] = 0
+        cols[oob_cols] = 0
+
+        rows = F.one_hot(rows, num_classes=W).to(torch.float)
+        cols = F.one_hot(cols, num_classes=H).to(torch.float)
+
+        # zero out, out of bounds keypoints
+        rows[oob_rows] = 0.
+        cols[oob_cols] = 0.
+
         res = torch.matmul(cols.transpose(-1, -2), rows)
         return res
 
