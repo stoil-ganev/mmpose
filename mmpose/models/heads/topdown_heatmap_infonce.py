@@ -146,21 +146,25 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         """Gets the loss."""
         losses = dict()
 
-        N, _, H, W = output.shape
+        N, K, H, W = output.shape
         z = self._derive_keypoints(output)
 
         # separate frames 1 and frames 2
+        # transpose batch and keypoint dims
+        # so that we compute inter-sample cdist per keypoint
         z_a = z[::2].transpose(0, 1).contiguous()
         z_b = z[1::2].transpose(0, 1).contiguous()
         N = N / 2
 
         total = - (torch.cdist(z_a, z_b) ** 2) / 1
-        total = total.sum(0)
 
-        nce = torch.sum(torch.diag(torch.log_softmax(total, 0)))
-        losses['infonce_loss'] = -(nce / N)
+        nce = 0.
+        for keypoint in range(total.shape[0]):
+            nce += torch.sum(torch.diag(torch.log_softmax(total[keypoint], 0)))
+        losses['infonce_loss'] = -(nce / (N * K))
 
         losses['decoder_loss'] = self._decoding_loss(z.detach(), target, target_weight)
+        print(losses)
         return losses
 
     def get_accuracy(self, output, target, target_weight):
@@ -353,10 +357,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         N, K, H, W = output.shape
 
         xs = F.normalize(output.sum(-2), p=1, dim=-1)
-        xs = (xs * torch.arange(0, W)).sum(-1)
+        xs = (xs * torch.arange(0, W, device=xs.device)).sum(-1)
 
         ys = F.normalize(output.sum(-1), p=1, dim=-1)
-        ys = (ys * torch.arange(0, H)).sum(-1)
+        ys = (ys * torch.arange(0, H, device=ys.device)).sum(-1)
 
         return torch.stack((xs, ys), dim=-1)
 
