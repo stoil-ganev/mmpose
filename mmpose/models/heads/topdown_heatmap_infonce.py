@@ -1,3 +1,4 @@
+import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -62,6 +63,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
 
         self.in_channels = in_channels
 
+        self.length_scale = torch.ones(out_channels, requires_grad=True)
         self.linear_decoder = nn.Linear(2 * out_channels, 2 * out_channels)
         self.decoder_loss = build_loss(loss_keypoint)
 
@@ -154,16 +156,22 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         # so that we compute inter-sample cdist per keypoint
         z_a = z[::2].transpose(0, 1).contiguous()
         z_b = z[1::2].transpose(0, 1).contiguous()
-        N = N / 2
+        N = N // 2
 
-        total = - (torch.cdist(z_a, z_b) ** 2) / 1
+        length_scale = (2 * (self.length_scale ** 2))
+        length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
 
-        nce = 0.
-        for keypoint in range(total.shape[0]):
-            nce += torch.sum(torch.diag(torch.log_softmax(total[keypoint], 0)))
-        losses['infonce_loss'] = -(nce / (N * K))
+        total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
+        keypoint_log_probs = torch.log_softmax(total, 1)
+        log_probs = torch.logsumexp(keypoint_log_probs, 0) - math.log(K)
 
+        nce = torch.sum(torch.diag(log_probs))
+
+        losses['infonce_loss'] = - (nce / N)
         losses['decoder_loss'] = self._decoding_loss(z.detach(), target, target_weight)
+
+        correct = torch.sum(torch.eq(torch.argmax(log_probs, dim=0), torch.arange(0, N)))
+        losses['acc_infonce'] = 1. * correct.item() / N
         return losses
 
     def get_accuracy(self, output, target, target_weight):
@@ -423,8 +431,8 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         maxvals = torch.amax(heatmaps_reshaped, 2).reshape((N, K, 1))
 
         preds = torch.tile(idx, (1, 1, 2))
-        preds[:, :, 0] = preds[:, :, 0] % W
-        preds[:, :, 1] = preds[:, :, 1] // W
+        preds[:, :, 0] = torch.remainder(preds[:, :, 0], W)
+        preds[:, :, 1] = torch.div(preds[:, :, 1], W, rounding_mode='floor')
 
         preds = torch.where(torch.tile(maxvals, (1, 1, 2)) > 0.0, preds, -1)
         return preds, maxvals
