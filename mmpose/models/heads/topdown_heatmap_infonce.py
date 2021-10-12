@@ -63,7 +63,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
 
         self.in_channels = in_channels
 
-        self.length_scale = torch.ones(out_channels, requires_grad=True)
+        self.length_scale = nn.Parameter(torch.ones(out_channels, requires_grad=True))
         self.linear_decoder = nn.Linear(2 * out_channels, 2 * out_channels)
         self.decoder_loss = build_loss(loss_keypoint)
 
