@@ -170,7 +170,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         losses['infonce_loss'] = - (nce / N)
         losses['decoder_loss'] = self._decoding_loss(z.detach(), target, target_weight)
 
-        correct = torch.sum(torch.eq(torch.argmax(log_probs, dim=0), torch.arange(0, N)))
+        correct = torch.sum(torch.eq(torch.argmax(log_probs, dim=0), torch.arange(0, N, device=log_probs.device)))
         losses['acc_infonce'] = 1. * correct.item() / N
         return losses
 
