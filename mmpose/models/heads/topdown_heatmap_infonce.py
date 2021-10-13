@@ -162,15 +162,15 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
 
         total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
-        keypoint_log_probs = torch.log_softmax(total, 1)
-        log_probs = torch.logsumexp(keypoint_log_probs, 0) - math.log(K)
+        total = total.sum(0)
 
-        nce = torch.sum(torch.diag(log_probs))
+        nce = torch.sum(torch.diag(torch.log_softmax(total, 0)))
 
         losses['infonce_loss'] = - (nce / N)
         losses['decoder_loss'] = self._decoding_loss(z.detach(), target, target_weight)
 
-        correct = torch.sum(torch.eq(torch.argmax(log_probs, dim=0), torch.arange(0, N, device=log_probs.device)))
+        correct = torch.sum(torch.eq(torch.argmax(torch.softmax(total, 0), dim=0),
+                                     torch.arange(0, N, device=total.device)))
         losses['acc_infonce'] = 1. * correct.item() / N
         return losses
 
