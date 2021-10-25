@@ -63,6 +63,9 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
 
         self.in_channels = in_channels
 
+        self.W = nn.Parameter(torch.ones(out_channels * 2, out_channels * 2, requires_grad=True))
+        self.sigma_p = nn.Parameter(torch.rand(out_channels * 2, out_channels * 2, requires_grad=True))
+
         self.length_scale = nn.Parameter(torch.ones(out_channels, requires_grad=True))
         self.linear_decoder = nn.Linear(2 * out_channels, 2 * out_channels)
         self.decoder_loss = build_loss(loss_keypoint)
@@ -148,21 +151,11 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         """Gets the loss."""
         losses = dict()
 
-        N, K, H, W = output.shape
         z = self._derive_keypoints(output)
 
-        # separate frames 1 and frames 2
-        # transpose batch and keypoint dims
-        # so that we compute inter-sample cdist per keypoint
-        z_a = z[::2].transpose(0, 1).contiguous()
-        z_b = z[1::2].transpose(0, 1).contiguous()
-        N = N // 2
+        total = self._f(z)
 
-        length_scale = (2 * (self.length_scale ** 2))
-        length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
-
-        total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
-        total = total.sum(0)
+        N, _ = total.shape
 
         nce = torch.sum(torch.diag(torch.log_softmax(total, 0)))
 
@@ -448,3 +441,32 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         keypoints = self._linear_decode(keypoints)
         targets = self._get_max_preds(targets)[0]
         return self.decoder_loss(keypoints, targets, target_weight)
+
+    def _f(self, z):
+        N, K, _ = z.shape
+        z = z.view(N, K * 2)
+
+        z_a = z[::2]
+        z_b = z[1::2]
+        N = N // 2
+
+        sigma = torch.matmul(self.sigma_p, self.sigma_p.transpose(0, 1))
+        mu = torch.matmul(z_a, self.W)
+        dist = torch.distributions.MultivariateNormal(mu, sigma)
+
+        total = dist.log_prob(z_b.view(N, 1, K * 2))
+
+        # separate frames 1 and frames 2
+        # transpose batch and keypoint dims
+        # so that we compute inter-sample cdist per keypoint
+        # z_a = z[::2].transpose(0, 1).contiguous()
+        # z_b = z[1::2].transpose(0, 1).contiguous()
+        # N = N // 2
+        #
+        # length_scale = (2 * (self.length_scale ** 2))
+        # length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
+        #
+        # total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
+        # total = total.sum(0)
+
+        return total
