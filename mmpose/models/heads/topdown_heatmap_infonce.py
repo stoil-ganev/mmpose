@@ -63,10 +63,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
 
         self.in_channels = in_channels
 
-        self.W = nn.Parameter(torch.ones(out_channels * 2, out_channels * 2, requires_grad=True))
-        self.sigma_p = nn.Parameter(torch.rand(out_channels * 2, out_channels * 2, requires_grad=True))
+        self.W = nn.Parameter(torch.rand(out_channels * 2, out_channels * 2, requires_grad=True))
+        self.sigma_p = nn.Parameter(torch.eye(out_channels * 2, requires_grad=True))
+        self.length_scale = nn.Parameter(torch.tensor([64.0], requires_grad=True))
 
-        self.length_scale = nn.Parameter(torch.ones(out_channels, requires_grad=True))
         self.linear_decoder = nn.Linear(2 * out_channels, 2 * out_channels)
         self.decoder_loss = build_loss(loss_keypoint)
 
@@ -206,7 +206,12 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         x = self._transform_inputs(x)
         x = self.deconv_layers(x)
         x = self.final_layer(x)
-        x = torch.sigmoid(x)
+
+        N, K, H, W = x.shape
+        x = x.view(N, K, H * W)
+        x = torch.softmax(x, -1)
+        x = x.view(N, K, H, W)
+
         return x
 
     def inference_model(self, x, flip_pairs=None):
@@ -356,10 +361,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
     def _derive_keypoints(output):
         N, K, H, W = output.shape
 
-        xs = F.normalize(output.sum(-2), p=1, dim=-1)
+        xs = output.sum(-2)
         xs = (xs * torch.arange(0, W, device=xs.device)).sum(-1)
 
-        ys = F.normalize(output.sum(-1), p=1, dim=-1)
+        ys = output.sum(-1)
         ys = (ys * torch.arange(0, H, device=ys.device)).sum(-1)
 
         return torch.stack((xs, ys), dim=-1)
@@ -451,6 +456,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         N = N // 2
 
         sigma = torch.matmul(self.sigma_p, self.sigma_p.transpose(0, 1))
+        sigma = sigma * self.length_scale
         mu = torch.matmul(z_a, self.W)
         dist = torch.distributions.MultivariateNormal(mu, sigma)
 
