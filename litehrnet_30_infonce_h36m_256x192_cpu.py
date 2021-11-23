@@ -28,7 +28,7 @@ log_config = dict(
     ])
 
 channel_cfg = dict(
-    num_output_channels=17,
+    num_output_channels=48,
     dataset_joints=17,
     dataset_channel=[
         [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16],
@@ -65,6 +65,7 @@ model = dict(
         type='TopdownHeatmapInfoNCEHead',
         in_channels=40,
         out_channels=channel_cfg['num_output_channels'],
+        num_joints=channel_cfg['dataset_joints'],
         num_deconv_layers=0,
         extra=dict(final_conv_kernel=1, ),
         loss_keypoint=dict(type='JointsMSELoss', use_target_weight=True)),

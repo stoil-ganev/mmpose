@@ -1,4 +1,3 @@
-import math
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -49,6 +48,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
     def __init__(self,
                  in_channels,
                  out_channels,
+                 num_joints,
                  num_deconv_layers=3,
                  num_deconv_filters=(256, 256, 256),
                  num_deconv_kernels=(4, 4, 4),
@@ -67,7 +67,7 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         self.sigma_p = nn.Parameter(torch.eye(out_channels * 2, requires_grad=True))
         self.length_scale = nn.Parameter(torch.tensor([64.0], requires_grad=True))
 
-        self.linear_decoder = nn.Linear(2 * out_channels, 2 * out_channels)
+        self.linear_decoder = nn.Linear(2 * out_channels, 2 * num_joints)
         self.decoder_loss = build_loss(loss_keypoint)
 
         self.train_cfg = {} if train_cfg is None else train_cfg
@@ -436,10 +436,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         return preds, maxvals
 
     def _linear_decode(self, keypoints):
-        N, K, D = keypoints.shape
+        N, _, D = keypoints.shape
         keypoints = keypoints.reshape(N, -1)
         keypoints = self.linear_decoder(keypoints)
-        keypoints = keypoints.reshape(N, K, D)
+        keypoints = keypoints.reshape(N, -1, D)
         return keypoints
 
     def _decoding_loss(self, keypoints, targets, target_weight):
