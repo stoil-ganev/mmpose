@@ -455,12 +455,12 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         z_b = z[1::2]
         N = N // 2
 
-        sigma = torch.matmul(self.sigma_p, self.sigma_p.transpose(0, 1))
-        sigma = sigma * self.length_scale
-        mu = torch.matmul(z_a, self.W)
-        dist = torch.distributions.MultivariateNormal(mu, sigma)
-
-        total = dist.log_prob(z_b.view(N, 1, K * 2))
+        # sigma = torch.matmul(self.sigma_p, self.sigma_p.transpose(0, 1))
+        # sigma = sigma * self.length_scale
+        # mu = torch.matmul(z_a, self.W)
+        # dist = torch.distributions.MultivariateNormal(mu, sigma)
+        #
+        # total = dist.log_prob(z_b.view(N, 1, K * 2))
 
         # separate frames 1 and frames 2
         # transpose batch and keypoint dims
@@ -469,10 +469,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         # z_b = z[1::2].transpose(0, 1).contiguous()
         # N = N // 2
         #
-        # length_scale = (2 * (self.length_scale ** 2))
-        # length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
-        #
-        # total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
-        # total = total.sum(0)
+        length_scale = (2 * (self.length_scale ** 2))
+        length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
+
+        total = - ((torch.cdist(z_a, z_b) ** 2) / length_scale)
+        total = total.sum(0)
 
         return total
