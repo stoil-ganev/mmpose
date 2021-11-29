@@ -451,9 +451,9 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         N, K, _ = z.shape
         z = z.view(N, K * 2)
 
-        z_a = z[::2]
-        z_b = z[1::2]
-        N = N // 2
+        # z_a = z[::2]
+        # z_b = z[1::2]
+        # N = N // 2
 
         # sigma = torch.matmul(self.sigma_p, self.sigma_p.transpose(0, 1))
         # sigma = sigma * self.length_scale
@@ -465,10 +465,10 @@ class TopdownHeatmapInfoNCEHead(TopdownHeatmapBaseHead):
         # separate frames 1 and frames 2
         # transpose batch and keypoint dims
         # so that we compute inter-sample cdist per keypoint
-        # z_a = z[::2].transpose(0, 1).contiguous()
-        # z_b = z[1::2].transpose(0, 1).contiguous()
-        # N = N // 2
-        #
+        z_a = z[::2].contiguous()
+        z_b = z[1::2].contiguous()
+        N = N // 2
+
         length_scale = (2 * (self.length_scale ** 2))
         length_scale = length_scale.view(-1, 1, 1).expand(-1, N, N)
 
